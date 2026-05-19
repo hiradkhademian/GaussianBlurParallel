@@ -1,6 +1,10 @@
 package src;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.ForkJoinPool;
 
 public class Main {
@@ -16,15 +20,36 @@ public class Main {
     public static final int ROW_THRESHOLD = 50; 
 
     public static void main(String[] args) {
-        String inputPath = "input.jpg"; 
-        String outputPathSeq = "output_sequential.jpg";
-        String outputPathFJ = "output_forkjoin.jpg";
+        String outputDir = "output";
+        try {
+            Path outputPath = Paths.get(outputDir);
+            if (!Files.exists(outputPath)) {
+                Files.createDirectories(outputPath);
+                System.out.println("Created output directory: " + outputDir);
+            }
+        } catch (IOException e) {
+            System.err.println("Error: Could not create output directory \"output\"");
+            e.printStackTrace();
+            return;
+        }
 
-        System.out.println("Loading image...");
+        if (args.length == 0) {
+            System.out.println("No input arguments provided. Using default: input.jpg");
+            processImage("input.jpg", outputDir);
+            return;
+        }
+
+        for (String inputPath : args) {
+            processImage(inputPath, outputDir);
+        }
+    }
+
+    private static void processImage(String inputPath, String outputDir) {
+        System.out.println("\nLoading image: " + inputPath);
         BufferedImage originalImage = ImageUtils.loadImage(inputPath);
 
         if (originalImage == null) {
-            System.out.println("Exiting due to image loading failure.");
+            System.out.println("Skipping " + inputPath + " due to load failure.");
             return;
         }
 
@@ -32,15 +57,19 @@ public class Main {
         int height = originalImage.getHeight();
         System.out.println("Image loaded. Resolution: " + width + "x" + height);
 
+        String baseName = Paths.get(inputPath).getFileName().toString();
+        int dotIndex = baseName.lastIndexOf('.');
+        String shortName = dotIndex > 0 ? baseName.substring(0, dotIndex) : baseName;
+        String outputPathSeq = outputDir + "/" + shortName + "_sequential.jpg";
+        String outputPathFJ = outputDir + "/" + shortName + "_forkjoin.jpg";
+
         // ==========================================
         // 1. SEQUENTIAL PROCESSING BASELINE (Ts)
         // ==========================================
         BufferedImage blurredImageSeq = ImageUtils.createBlankCopy(originalImage);
-        System.out.println("\nStarting sequential blur...");
+        System.out.println("Starting sequential blur...");
         long startTimeSeq = System.currentTimeMillis();
-        
         SequentialBlur.applyBlur(originalImage, blurredImageSeq);
-        
         long endTimeSeq = System.currentTimeMillis();
         long durationSeq = endTimeSeq - startTimeSeq;
         System.out.println("Sequential Processing Time (Ts): " + durationSeq + " ms");
@@ -50,34 +79,22 @@ public class Main {
         // 2. FORK/JOIN PARALLEL PROCESSING (Tp)
         // ==========================================
         BufferedImage blurredImageFJ = ImageUtils.createBlankCopy(originalImage);
-        System.out.println("\nStarting Fork/Join parallel blur...");
-        
-        // Dynamically discover available CPU processing cores on your Mac
+        System.out.println("Starting Fork/Join parallel blur...");
         int availableCores = Runtime.getRuntime().availableProcessors();
         System.out.println("Targeting Concurrency Level (Active Cores): " + availableCores);
-        
-        // Construct custom pool mapped directly to your hardware footprint
         ForkJoinPool pool = new ForkJoinPool(availableCores);
-        
         long startTimeFJ = System.currentTimeMillis();
-        
-        // Instantiate the top level task, skipping the 1-pixel outermost row border safely
         ForkJoinBlur topLevelTask = new ForkJoinBlur(originalImage, blurredImageFJ, 1, height - 1, ROW_THRESHOLD);
         pool.invoke(topLevelTask);
-        
         long endTimeFJ = System.currentTimeMillis();
         long durationFJ = endTimeFJ - startTimeFJ;
         System.out.println("Fork/Join Parallel Processing Time (Tp): " + durationFJ + " ms");
         ImageUtils.saveImage(blurredImageFJ, outputPathFJ, "jpg");
-
-        // Close the thread pool gracefully
         pool.shutdown();
 
-        // ==========================================
-        // 3. INITIAL TELEMETRY ANALYSIS
-        // ==========================================
         double speedup = (double) durationSeq / durationFJ;
-        System.out.println("\n--- Performance Snapshot ---");
+        System.out.println("--- Performance Snapshot ---");
         System.out.printf("Empirical Speedup Factor (S): %.2fx%n", speedup);
+        System.out.println("Saved outputs: " + outputPathSeq + " and " + outputPathFJ);
     }
 }

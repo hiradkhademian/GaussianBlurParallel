@@ -1,4 +1,12 @@
+# Compiled Java class files
 *.class
+
+# OS generated files
 .DS_Store
 Thumbs.db
+
+# VS Code configuration
 .vscode/
+
+# Generated output images
+output/
