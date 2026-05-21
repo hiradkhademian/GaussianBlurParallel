@@ -12,51 +12,68 @@ A high-performance Java application comparing **sequential** and **fork/join par
 4. [Code Structure](#code-structure)
 5. [How It Works](#how-it-works)
 6. [Performance Trade-offs](#performance-trade-offs)
-7. [Building the Project](#building-the-project)
-8. [Running on macOS](#running-on-macos)
-9. [Running on Windows](#running-on-windows)
-10. [Usage Examples](#usage-examples)
-11. [Output](#output)
-12. [Performance Metrics](#performance-metrics)
+7. [Benchmark Results (v2.0)](#benchmark-results-v20)
+8. [Building the Project](#building-the-project)
+9. [Running on macOS](#running-on-macos)
+10. [Running on Windows](#running-on-windows)
+11. [Usage Examples](#usage-examples)
+12. [Output](#output)
+13. [Performance Metrics](#performance-metrics)
+
 
 ---
 
 ## Project Overview
 
-This project implements a **Gaussian blur filter** on images using two distinct approaches:
+This project implements a **Gaussian blur filter** on images using three distinct approaches:
 
 1. **Sequential Processing (Ts)** — Single-threaded implementation that processes the entire image linearly.
-2. **Fork/Join Parallel Processing (Tp)** — Multi-threaded implementation using Java's `ForkJoinPool` to divide the workload across CPU cores.
+2. **Fork/Join Parallel Processing (Tp_fj)** — Multi-threaded implementation using Java's `ForkJoinPool` with recursive task decomposition.
+3. **Native Java Threads (Tp_threads)** — Multi-threaded implementation using explicit `Thread` objects with static row partitioning.
 
 ### Purpose
 
 This is a demonstration of:
 - Parallel programming concepts in Java
+- Comparison of different parallelization strategies (Fork/Join vs. Native Threads)
 - Trade-offs between sequential and parallel algorithms
 - How to measure empirical speedup: **S = Ts / Tp**
 - Understanding when parallelization is beneficial
+- Real-world performance benchmarking across different image resolutions
 
 ---
 
 ## System Architecture
 
-The project uses a **divide-and-conquer** approach for parallel processing:
+The project implements three distinct processing strategies:
 
 ```
 Input Image
     ↓
 Main (Entry Point)
-    ├── Sequential Blur (Single Thread)
-    │   └── Output: output_sequential.jpg
     │
-    └── Fork/Join Parallel Blur (Multi-threaded)
-        ├── Divide rows into chunks
-        ├── Process in parallel across CPU cores
-        └── Output: output_forkjoin.jpg
+    ├─ Sequential Blur (Single Thread)
+    │  └─ Output: output_sequential.jpg (Baseline Ts)
+    │
+    ├─ Fork/Join Parallel Blur (Recursive Task Division)
+    │  └─ Output: output_forkjoin.jpg (Tp_fj with work-stealing)
+    │
+    └─ Native Threads (Static Row Partitioning)
+       └─ Output: output_threaded.jpg (Tp_threads with explicit threads)
 
-Performance Metrics Calculated:
-    Speedup Factor (S) = Sequential Time / Parallel Time
+Performance Analysis:
+    Speedup_FJ = Ts / Tp_fj
+    Speedup_Threads = Ts / Tp_threads
+    Efficiency = Speedup / Number_of_Cores
 ```
+
+### Three Implementation Strategies Compared
+
+| Strategy | Approach | Overhead | Best For |
+|----------|----------|----------|----------|
+| **Sequential** | Single thread, no task division | None | Baseline measurement |
+| **Fork/Join** | Recursive divide-and-conquer with work-stealing | Task creation, synchronization | Adaptive workload, CPU cache-friendly |
+| **Native Threads** | Static row partitioning, explicit threads | Thread creation, joining | Predictable workload, deterministic behavior |
 
 ---
 
@@ -184,7 +201,62 @@ ForkJoinBlur (extends RecursiveAction)
 
 ---
 
-#### 4. **ImageUtils.java** (I/O and Image Handling)
+#### 4. **ThreadedBlur.java** (Native Threads Implementation)
+**Location:** `src/src/ThreadedBlur.java`
+
+**Purpose:**
+- Implements parallel Gaussian blur using explicit Java `Thread` objects
+- Uses static row partitioning for predictable load distribution
+- Provides comparison with Fork/Join strategy
+
+**Architecture:**
+
+```
+ThreadedBlur (implements Runnable)
+    ├── Constructor: Receives assigned row range (startRow, endRow)
+    │
+    ├── run() — Worker thread execution
+    │   └── Processes blur on assigned rows sequentially
+    │
+    └── applyBlur(src, dest, threadCount) — Static orchestrator
+        ├── Partition rows across threadCount threads
+        ├── Create and spawn all threads
+        └── Join all threads before returning
+```
+
+**Key Variables:**
+- `src` — Source image
+- `dest` — Destination image
+- `startRow`, `endRow` — Row range assigned to this thread
+- `threadCount` — Number of threads to spawn
+
+**Algorithm (Static Partitioning):**
+```
+1. Calculate total rows to process: height - 2
+2. Divide rows equally: rowsPerThread = totalRows / threadCount
+3. For each thread i:
+       startRow = 1 + (i * rowsPerThread)
+       endRow = startRow + rowsPerThread
+4. Last thread absorbs remainder rows for full coverage
+5. Create Thread[] array and start all threads
+6. Main thread joins() all worker threads
+```
+
+**Key Differences from Fork/Join:**
+| Aspect | Fork/Join | Native Threads |
+|--------|-----------|----------------|
+| **Task Division** | Recursive, dynamic | Static, predetermined |
+| **Load Balancing** | Work-stealing queue | None (static partition) |
+| **Thread Reuse** | Thread pool reuse | One thread per task |
+| **Overhead** | Higher (task objects) | Lower (simpler) |
+| **Predictability** | Variable (depends on work-stealing) | Deterministic (fixed partition) |
+| **Best For** | Irregular workloads | Regular, uniform workloads |
+
+**Complexity:** O(width × height / threadCount) + thread overhead
+
+---
+
+#### 5. **ImageUtils.java** (I/O and Image Handling)
 **Location:** `src/src/ImageUtils.java`
 
 **Purpose:**
@@ -350,6 +422,80 @@ The efficiency of 28% is typical for image processing:
 - Some cores are underutilized due to work distribution imbalance
 - Memory bandwidth becomes a bottleneck
 - Thread management overhead reduces gains
+
+---
+
+## Benchmark Results (v2.0)
+
+### Comprehensive Performance Analysis
+
+**Test System:** MacBook Air M1 (8 CPU cores)  
+**Test Date:** May 21, 2026  
+**Test Images:** 3 different resolutions (512×512, 1056×748, 1280×720)
+
+### Results Summary
+
+| Image Resolution | Sequential (Ts) | Fork/Join (Tp_fj) | Speedup FJ | Native Threads (Tp_th) | Speedup Threads | Efficiency |
+|------------------|-----------------|-------------------|-----------|------------------------|-----------------|-----------|
+| 512×512 | 82 ms | 97 ms | 0.85x ❌ | 90 ms | 0.91x ❌ | 0.11 |
+| 1056×748 | 137 ms | 108 ms | 1.27x ✓ | 90 ms | 1.52x ✓✓ | 0.19 |
+| 1280×720 | 157 ms | 88 ms | 1.78x ✓✓ ⭐ | 108 ms | 1.45x ✓ | 0.18 |
+
+### Key Findings
+
+**🏆 Best Performers:**
+- **Fork/Join:** 1.78x speedup on 1280×720 image (22% faster than baseline)
+- **Native Threads:** 1.52x speedup on 1056×748 image (52% faster than baseline)
+
+**📊 Observations:**
+
+1. **Small Images (512×512):** Both parallel approaches are slower than sequential
+   - Thread overhead dominates computation time
+   - Parallelization not beneficial for small workloads
+   - Sequential is optimal for images < 600×600
+
+2. **Medium Images (1056×748):** Native Threads outperform Fork/Join
+   - Native Threads: 1.52x speedup (static partitioning is efficient)
+   - Fork/Join: 1.27x speedup (recursive overhead not fully amortized)
+   - Efficiency ~0.19 per core (good for image processing)
+
+3. **Large Images (1280×720):** Fork/Join achieves best speedup
+   - Fork/Join: 1.78x speedup (recursive division pays off)
+   - Native Threads: 1.45x speedup (static partitioning struggles with asymmetric load)
+   - Efficiency ~0.22 per core (approaching practical limits)
+
+**💡 Insights:**
+
+| Factor | Impact |
+|--------|--------|
+| **Image Size** | Larger images = better parallelization benefits |
+| **Fork/Join vs. Native Threads** | Fork/Join better for larger images (work-stealing); Native Threads better for smaller-medium images (less overhead) |
+| **Efficiency Plateau** | Max efficiency ~0.22-0.25 per core due to memory bandwidth limits and task scheduling overhead |
+| **Sweet Spot** | 1056×748 to 1280×720 range shows best trade-off between speedup and efficiency |
+
+### Detailed Benchmark Data
+
+Complete benchmark results with all columns (Image, Resolution, Mode, Time(ms), Cores, Speedup, Efficiency) are available in:
+**`GaussianBlur_Benchmark_Results.xlsx`** (Excel spreadsheet with formatting)  
+**`benchmark_data.csv`** (Raw CSV data)
+
+### Performance Recommendations
+
+**Use Sequential for:**
+- Images < 600×600 pixels
+- Single-threaded CPU systems
+- Real-time constraints with small overhead tolerance
+
+**Use Native Threads for:**
+- Medium images (600×1200 pixels)
+- Predictable, uniform workloads
+- When code simplicity is prioritized
+
+**Use Fork/Join for:**
+- Large images (> 1200 pixels)
+- Potentially irregular workloads
+- Maximum scalability across CPU cores
+- Cache-aware task scheduling
 
 ---
 

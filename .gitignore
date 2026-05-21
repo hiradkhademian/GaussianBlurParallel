@@ -7,6 +7,3 @@ Thumbs.db
 
 # VS Code configuration
 .vscode/
-
-# Generated output images
-output/
