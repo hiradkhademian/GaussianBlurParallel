@@ -81,12 +81,14 @@ Performance Analysis:
 
 ### Gaussian Blur
 
-Gaussian blur is a convolution operation using a **3x3 kernel**:
+Gaussian blur is a convolution operation using a **5×5 kernel** for stronger blur effect:
 
 ```
-Kernel:  | 1  2  1 |     (Normalizer: 16)
-         | 2  4  2 |
-         | 1  2  1 |
+Kernel:  | 1   4   6   4   1 |     (Normalizer: 256)
+         | 4  16  24  16   4 |
+         | 6  24  36  24   6 |
+         | 4  16  24  16   4 |
+         | 1   4   6   4   1 |
 ```
 
 **For each pixel (x, y):**
@@ -98,8 +100,9 @@ output[x, y] = (sum of (source_pixel * kernel_weight)) / normalizer
 The operation is applied to all three color channels (R, G, B) independently.
 
 **Edge Handling:**
-- Pixels at the 1-pixel border (edges of the image) are skipped to avoid out-of-bounds array access
-- This means the algorithm safely processes pixels from (1, 1) to (width-2, height-2)
+- Pixels at the 2-pixel border (edges of the image) are skipped to avoid out-of-bounds array access
+- This means the algorithm safely processes pixels from (2, 2) to (width-3, height-3)
+- The 5×5 kernel requires a 2-pixel margin on all sides to safely access the 25 neighboring pixels
 
 ### Time Complexity
 
@@ -123,8 +126,8 @@ The operation is applied to all three color channels (R, G, B) independently.
 - Calculates and displays speedup metrics
 
 **Key Variables:**
-- `KERNEL` — 3×3 Gaussian kernel weights
-- `KERNEL_NORMALIZER` — Division factor (16) to normalize kernel output
+- `KERNEL` — 5×5 Gaussian kernel weights (25 elements)
+- `KERNEL_NORMALIZER` — Division factor (256) to normalize kernel output
 - `ROW_THRESHOLD` — Threshold (50 rows) to determine when to stop dividing and process sequentially
 
 **Public Methods:**
@@ -147,9 +150,9 @@ The operation is applied to all three color channels (R, G, B) independently.
 
 **Algorithm:**
 ```
-for each row (y) from 1 to height-2:
-    for each column (x) from 1 to width-2:
-        apply 3x3 Gaussian kernel convolution
+for each row (y) from 2 to height-3:
+    for each column (x) from 2 to width-3:
+        apply 5x5 Gaussian kernel convolution
         write result to output image
 ```
 
@@ -346,8 +349,8 @@ GaussianBlurParallel/
 
 **Sequential Processing:**
 1. Load `input.jpg` into memory
-2. For each pixel (x, y) from (1,1) to (1999, 2999):
-   - Sample 3×3 neighborhood
+2. For each pixel (x, y) from (2,2) to (1998, 2998):
+   - Sample 5×5 neighborhood
    - Apply Gaussian kernel
    - Store result
 3. Save to `output/input_sequential.jpg`
@@ -960,19 +963,20 @@ Java's `ForkJoinPool` is ideal for this problem because:
 
 ### Kernel Size Justification
 
-The 3×3 Gaussian kernel is chosen because:
+The 5×5 Gaussian kernel is chosen because:
 
-1. **Standard in Computer Vision** — Widely used for edge detection and denoising
-2. **Balanced Blur Effect** — Provides noticeable blur without extreme quality loss
-3. **Computational Efficiency** — Small kernel = fast processing; 9 samples per pixel
-4. **Practical Relevance** — Used in real image processing pipelines (Instagram, Photoshop, etc.)
+1. **Stronger Blur Effect** — More noticeable smoothing; recommended for visible blur in applications
+2. **Balanced Performance** — 25 samples per pixel; still manageable computational cost
+3. **Better Parallelization** — More work per pixel → reduces relative overhead of parallelization
+4. **Practical Relevance** — Stronger blur better demonstrates speedup gains on multi-core systems
+5. **Industry Standard Range** — 5×5 kernels commonly used in professional image editing
 
 ### Edge Handling
 
-Pixels at image borders (1-pixel margin) are **not processed** because:
+Pixels at image borders (2-pixel margin) are **not processed** because:
 
 1. **Out-of-Bounds Safety** — Prevents array access errors at edges
-2. **Kernel Centering** — 3×3 kernel needs all 9 neighbors; impossible at border
+2. **Kernel Centering** — 5×5 kernel needs all 25 neighbors; requires 2-pixel margin on all sides
 3. **Standard Practice** — Most image libraries use same approach
 4. **Negligible Impact** — Border is <1% of image for typical resolutions
 

@@ -23,22 +23,22 @@ public class ThreadedBlur implements Runnable {
 
         // Thread safely crunches ONLY its statically assigned block of rows
         for (int y = startRow; y < endRow; y++) {
-            for (int x = 1; x < width - 1; x++) {
+            for (int x = 2; x < width - 2; x++) {
                 
                 int redSum = 0;
                 int greenSum = 0;
                 int blueSum = 0;
 
-                // 3x3 Spatial Convolution Matrix Overlay
-                for (int ky = -1; ky <= 1; ky++) {
-                    for (int kx = -1; kx <= 1; kx++) {
+                // 5x5 Spatial Convolution Matrix Overlay
+                for (int ky = -2; ky <= 2; ky++) {
+                    for (int kx = -2; kx <= 2; kx++) {
                         int rgb = src.getRGB(x + kx, y + ky);
                         
                         int r = (rgb >> 16) & 0xFF;
                         int g = (rgb >> 8) & 0xFF;
                         int b = rgb & 0xFF;
 
-                        int weight = kernel[ky + 1][kx + 1];
+                        int weight = kernel[ky + 2][kx + 2];
 
                         redSum += r * weight;
                         greenSum += g * weight;
@@ -61,12 +61,12 @@ public class ThreadedBlur implements Runnable {
         int height = src.getHeight();
         Thread[] threads = new Thread[threadCount];
         
-        // Calculate the height of each thread's slice (skipping the 1-pixel outer border margin)
-        int totalRowsToProcess = height - 2; 
+        // Calculate the height of each thread's slice (skipping the 2-pixel outer border margin)
+        int totalRowsToProcess = height - 4; 
         int rowsPerThread = totalRowsToProcess / threadCount;
         int remainingRows = totalRowsToProcess % threadCount; // Catch any remainder rows
 
-        int currentStartRow = 1;
+        int currentStartRow = 2;
 
         // Allocate workloads statically across the native thread array
         for (int i = 0; i < threadCount; i++) {
