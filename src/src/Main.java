@@ -8,18 +8,25 @@ import java.nio.file.Paths;
 import java.util.concurrent.ForkJoinPool;
 
 public class Main {
-    // 5x5 Gaussian Kernel definitions (stronger blur)
-    public static final int[][] KERNEL = {
-        {1, 4, 6, 4, 1},
-        {4, 16, 24, 16, 4},
-        {6, 24, 36, 24, 6},
-        {4, 16, 24, 16, 4},
-        {1, 4, 6, 4, 1}
-    };
-    public static final int KERNEL_NORMALIZER = 256; 
+    // 10x10 Gaussian-like Kernel definitions (stronger blur)
+    public static final int[] KERNEL_1D = {1, 4, 10, 16, 19, 19, 16, 10, 4, 1};
+    public static final int KERNEL_NORMALIZER = 10000;
+    public static final int[][] KERNEL = generateKernel();
+    public static final int KERNEL_MARGIN = KERNEL.length / 2;
 
     // Threshold config: process sequentially if a chunk has fewer than 50 rows
-    public static final int ROW_THRESHOLD = 50; 
+    public static final int ROW_THRESHOLD = 50;
+
+    private static int[][] generateKernel() {
+        int size = KERNEL_1D.length;
+        int[][] kernel = new int[size][size];
+        for (int row = 0; row < size; row++) {
+            for (int col = 0; col < size; col++) {
+                kernel[row][col] = KERNEL_1D[row] * KERNEL_1D[col];
+            }
+        }
+        return kernel;
+    } 
 
     public static void main(String[] args) {
         String outputDir = "output";
@@ -90,7 +97,7 @@ public class Main {
         System.out.println("\nStarting Fork/Join parallel blur...");
         ForkJoinPool pool = new ForkJoinPool(availableCores);
         long startTimeFJ = System.currentTimeMillis();
-        ForkJoinBlur topLevelTask = new ForkJoinBlur(originalImage, blurredImageFJ, 2, height - 2, ROW_THRESHOLD);
+        ForkJoinBlur topLevelTask = new ForkJoinBlur(originalImage, blurredImageFJ, KERNEL_MARGIN, height - KERNEL_MARGIN, ROW_THRESHOLD);
         pool.invoke(topLevelTask);
         long endTimeFJ = System.currentTimeMillis();
         long durationFJ = endTimeFJ - startTimeFJ;

@@ -12,7 +12,7 @@ A high-performance Java application comparing **sequential** and **fork/join par
 4. [Code Structure](#code-structure)
 5. [How It Works](#how-it-works)
 6. [Performance Trade-offs](#performance-trade-offs)
-7. [Benchmark Results (v2.0)](#benchmark-results-v20)
+7. [Benchmark Results (v4.0)](#benchmark-results-v40)
 8. [Building the Project](#building-the-project)
 9. [Running on macOS](#running-on-macos)
 10. [Running on Windows](#running-on-windows)
@@ -37,6 +37,7 @@ This is a demonstration of:
 - Parallel programming concepts in Java
 - Comparison of different parallelization strategies (Fork/Join vs. Native Threads)
 - Trade-offs between sequential and parallel algorithms
+- Use of a larger 10×10 Gaussian-like kernel for a stronger blur effect
 - How to measure empirical speedup: **S = Ts / Tp**
 - Understanding when parallelization is beneficial
 - Real-world performance benchmarking across different image resolutions
@@ -81,15 +82,15 @@ Performance Analysis:
 
 ### Gaussian Blur
 
-Gaussian blur is a convolution operation using a **5×5 kernel** for stronger blur effect:
+Gaussian blur is a convolution operation using a **10×10 Gaussian-like kernel** for stronger blur effect.
+
+The kernel is generated from a 1D weight vector:
 
 ```
-Kernel:  | 1   4   6   4   1 |     (Normalizer: 256)
-         | 4  16  24  16   4 |
-         | 6  24  36  24   6 |
-         | 4  16  24  16   4 |
-         | 1   4   6   4   1 |
+[1, 4, 10, 16, 19, 19, 16, 10, 4, 1]
 ```
+
+Each entry is combined as an outer product to create a 10×10 matrix, and the result is normalized by `10000`.
 
 **For each pixel (x, y):**
 
@@ -100,9 +101,9 @@ output[x, y] = (sum of (source_pixel * kernel_weight)) / normalizer
 The operation is applied to all three color channels (R, G, B) independently.
 
 **Edge Handling:**
-- Pixels at the 2-pixel border (edges of the image) are skipped to avoid out-of-bounds array access
-- This means the algorithm safely processes pixels from (2, 2) to (width-3, height-3)
-- The 5×5 kernel requires a 2-pixel margin on all sides to safely access the 25 neighboring pixels
+- Pixels at the 5-pixel border (edges of the image) are skipped to avoid out-of-bounds array access
+- This means the algorithm safely processes pixels from (5, 5) to (width-6, height-6)
+- The 10×10 kernel requires a 5-pixel margin on all sides to safely access the 100 neighboring pixels
 
 ### Time Complexity
 
@@ -126,8 +127,8 @@ The operation is applied to all three color channels (R, G, B) independently.
 - Calculates and displays speedup metrics
 
 **Key Variables:**
-- `KERNEL` — 5×5 Gaussian kernel weights (25 elements)
-- `KERNEL_NORMALIZER` — Division factor (256) to normalize kernel output
+- `KERNEL` — 10×10 Gaussian-like kernel weights (100 elements)
+- `KERNEL_NORMALIZER` — Division factor (10000) to normalize kernel output
 - `ROW_THRESHOLD` — Threshold (50 rows) to determine when to stop dividing and process sequentially
 
 **Public Methods:**
@@ -150,9 +151,9 @@ The operation is applied to all three color channels (R, G, B) independently.
 
 **Algorithm:**
 ```
-for each row (y) from 2 to height-3:
-    for each column (x) from 2 to width-3:
-        apply 5x5 Gaussian kernel convolution
+for each row (y) from 5 to height-6:
+    for each column (x) from 5 to width-6:
+        apply 10x10 Gaussian-like kernel convolution
         write result to output image
 ```
 
@@ -349,9 +350,9 @@ GaussianBlurParallel/
 
 **Sequential Processing:**
 1. Load `input.jpg` into memory
-2. For each pixel (x, y) from (2,2) to (1998, 2998):
-   - Sample 5×5 neighborhood
-   - Apply Gaussian kernel
+2. For each pixel (x, y) from (5, 5) to (1994, 2994):
+   - Sample 10×10 neighborhood
+   - Apply Gaussian-like kernel
    - Store result
 3. Save to `output/input_sequential.jpg`
 4. **Time:** ~984 ms
@@ -428,7 +429,7 @@ The efficiency of 28% is typical for image processing:
 
 ---
 
-## Benchmark Results (v2.0)
+## Benchmark Results (v4.0)
 
 ### Comprehensive Performance Analysis
 
@@ -963,20 +964,20 @@ Java's `ForkJoinPool` is ideal for this problem because:
 
 ### Kernel Size Justification
 
-The 5×5 Gaussian kernel is chosen because:
+The 10×10 Gaussian-like kernel is chosen because:
 
 1. **Stronger Blur Effect** — More noticeable smoothing; recommended for visible blur in applications
-2. **Balanced Performance** — 25 samples per pixel; still manageable computational cost
+2. **Balanced Performance** — 100 samples per pixel; still manageable with modern multi-core hardware
 3. **Better Parallelization** — More work per pixel → reduces relative overhead of parallelization
 4. **Practical Relevance** — Stronger blur better demonstrates speedup gains on multi-core systems
-5. **Industry Standard Range** — 5×5 kernels commonly used in professional image editing
+5. **Advanced Demonstration** — Larger kernels show how the algorithm scales beyond common 5×5 filters
 
 ### Edge Handling
 
-Pixels at image borders (2-pixel margin) are **not processed** because:
+Pixels at image borders (5-pixel margin) are **not processed** because:
 
 1. **Out-of-Bounds Safety** — Prevents array access errors at edges
-2. **Kernel Centering** — 5×5 kernel needs all 25 neighbors; requires 2-pixel margin on all sides
+2. **Kernel Centering** — 10×10 kernel needs all 100 neighbors; requires a 5-pixel margin on all sides
 3. **Standard Practice** — Most image libraries use same approach
 4. **Negligible Impact** — Border is <1% of image for typical resolutions
 
@@ -986,7 +987,7 @@ Pixels at image borders (2-pixel margin) are **not processed** because:
 
 To extend this project:
 
-1. **Larger Kernels** — Implement 5×5 or 7×7 Gaussian kernels
+1. **Larger Kernels** — Implement 10×10 or other larger Gaussian kernels
 2. **Other Filters** — Sobel (edge detection), Median (denoising)
 3. **Streaming Mode** — Process images line-by-line for memory efficiency
 4. **GPU Acceleration** — Port to CUDA/OpenCL for 10-100x speedup

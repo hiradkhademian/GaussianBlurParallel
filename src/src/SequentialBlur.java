@@ -8,21 +8,25 @@ public class SequentialBlur {
         int height = src.getHeight();
         int[][] kernel = Main.KERNEL;
         int normalizer = Main.KERNEL_NORMALIZER;
+        int kernelSize = kernel.length;
+        int offsetStart = -((kernelSize - 1) / 2);
+        int offsetEnd = offsetStart + kernelSize - 1;
+        int border = kernelSize / 2;
 
-        for (int y = 2; y < height - 2; y++) {
-            for (int x = 2; x < width - 2; x++) {
+        for (int y = border; y < height - border; y++) {
+            for (int x = border; x < width - border; x++) {
                 int redSum = 0;
                 int greenSum = 0;
                 int blueSum = 0;
 
-                for (int ky = -2; ky <= 2; ky++) {
-                    for (int kx = -2; kx <= 2; kx++) {
+                for (int ky = offsetStart; ky <= offsetEnd; ky++) {
+                    for (int kx = offsetStart; kx <= offsetEnd; kx++) {
                         int rgb = src.getRGB(x + kx, y + ky);
                         int r = (rgb >> 16) & 0xFF;
                         int g = (rgb >> 8) & 0xFF;
                         int b = rgb & 0xFF;
 
-                        int weight = kernel[ky + 2][kx + 2];
+                        int weight = kernel[ky - offsetStart][kx - offsetStart];
                         redSum += r * weight;
                         greenSum += g * weight;
                         blueSum += b * weight;

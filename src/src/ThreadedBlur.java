@@ -20,25 +20,28 @@ public class ThreadedBlur implements Runnable {
         int width = src.getWidth();
         int[][] kernel = Main.KERNEL;
         int normalizer = Main.KERNEL_NORMALIZER;
+        int kernelSize = kernel.length;
+        int offsetStart = -((kernelSize - 1) / 2);
+        int offsetEnd = offsetStart + kernelSize - 1;
 
         // Thread safely crunches ONLY its statically assigned block of rows
         for (int y = startRow; y < endRow; y++) {
-            for (int x = 2; x < width - 2; x++) {
+            for (int x = kernelSize / 2; x < width - (kernelSize / 2); x++) {
                 
                 int redSum = 0;
                 int greenSum = 0;
                 int blueSum = 0;
 
-                // 5x5 Spatial Convolution Matrix Overlay
-                for (int ky = -2; ky <= 2; ky++) {
-                    for (int kx = -2; kx <= 2; kx++) {
+                // Spatial convolution matrix overlay
+                for (int ky = offsetStart; ky <= offsetEnd; ky++) {
+                    for (int kx = offsetStart; kx <= offsetEnd; kx++) {
                         int rgb = src.getRGB(x + kx, y + ky);
                         
                         int r = (rgb >> 16) & 0xFF;
                         int g = (rgb >> 8) & 0xFF;
                         int b = rgb & 0xFF;
 
-                        int weight = kernel[ky + 2][kx + 2];
+                        int weight = kernel[ky - offsetStart][kx - offsetStart];
 
                         redSum += r * weight;
                         greenSum += g * weight;
@@ -60,13 +63,15 @@ public class ThreadedBlur implements Runnable {
     public static void applyBlur(BufferedImage src, BufferedImage dest, int threadCount) {
         int height = src.getHeight();
         Thread[] threads = new Thread[threadCount];
+        int kernelSize = Main.KERNEL.length;
+        int border = kernelSize / 2;
         
-        // Calculate the height of each thread's slice (skipping the 2-pixel outer border margin)
-        int totalRowsToProcess = height - 4; 
+        // Calculate the height of each thread's slice (skipping the outer border margin)
+        int totalRowsToProcess = height - (2 * border);
         int rowsPerThread = totalRowsToProcess / threadCount;
         int remainingRows = totalRowsToProcess % threadCount; // Catch any remainder rows
 
-        int currentStartRow = 2;
+        int currentStartRow = border;
 
         // Allocate workloads statically across the native thread array
         for (int i = 0; i < threadCount; i++) {
