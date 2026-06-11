@@ -1,0 +1,16 @@
+Image File,Width,Height,Total Pixels,Seq Min (ms),Seq Max (ms),Seq Avg (ms),Seq Median (ms),FJ Min (ms),FJ Max (ms),FJ Avg (ms),FJ Median (ms),Speedup (S),Efficiency (%),Available Cores
+deathNote_4096x2304.png,4096,2304,9437184,17613,17950,17805,17851,5279,5636,5490,5554,3.24,40.5,8
+berserk_5760x3240.png,5760,3240,18662400,34878,35053,34970,34978,10558,10851,10686,10650,3.27,40.9,8
+jujutsuKaisen_5120x2880.png,5120,2880,14745600,27168,27329,27271,27317,7577,8080,7875,7967,3.46,43.3,8
+whisperoftheheart_6400x3600.png,6400,3600,23040000,43525,43686,43591,43563,12084,12628,12387,12449,3.52,44.0,8
+cowboyBebop_7680x4320.png,7680,4320,33177600,62760,63237,63077,63235,17698,18367,17941,17757,3.52,43.9,8
+vinlandSaga_8192x4608.png,8192,4608,37748736,71067,72428,71746,71742,20233,21262,20683,20554,3.47,43.4,8
+
+=== PNG BENCHMARK SUMMARY ===
+Metric,Value
+Total PNG Images,6
+Available Cores,8
+Average Speedup,3.41x
+Average Efficiency,42.7%
+Avg Sequential Throughput,531 pixels/ms
+Avg Fork/Join Throughput,1812 pixels/ms
