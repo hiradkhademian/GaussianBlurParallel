@@ -1,0 +1,21 @@
+Image File,Width,Height,Total Pixels,Seq Min (ms),Seq Max (ms),Seq Avg (ms),Seq Median (ms),FJ Min (ms),FJ Max (ms),FJ Avg (ms),FJ Median (ms),Speedup (S),Efficiency (%),Seq Throughput (px/ms),FJ Throughput (px/ms),Available Cores
+wallhaven-kxd6d6_1920x1088.png,1920,1088,2088960,3814,3920,3846,3815,930,988,955,950,4.03,50.3,543,2187,8
+wallhaven-kxd6d6_3840x2176.png,3840,2176,8355840,15524,15774,15649,15666,3507,3828,3659,3666,4.28,53.5,534,2284,8
+wallhaven-kxd6d6_5120x2880.png,5120,2880,14745600,27095,27690,27309,27270,6735,7325,6982,6912,3.91,48.9,540,2112,8
+wallhaven-kxd6d6_7680x4352.png,7680,4352,33423360,61855,62231,62049,62085,15797,17507,16786,17104,3.70,46.2,539,1991,8
+wallhaven-kxd6d6_15360x8640.png,15360,8640,132710400,251947,256208,253514,253066,68348,88489,77688,75703,3.26,40.8,523,1708,8
+
+=== PERFORMANCE SUMMARY ===
+Metric,Value
+Total Images,5
+Available Cores,8
+Benchmark Iterations,5
+
+Average Speedup,3.84x
+Min Speedup,3.26x
+Max Speedup,4.28x
+Average Efficiency,47.9%
+Overall Speedup (Total Pixels),3.42x
+Average Sequential Throughput,536 px/ms
+Average Fork/Join Throughput,2056 px/ms
+Total Pixels Processed,191,324,160
